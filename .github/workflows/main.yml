@@ -1,0 +1,40 @@
+name: Build APK
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unzip project (if uploaded as zip)
+        run: |
+          for z in $(find . -maxdepth 2 -name "*.zip"); do
+            echo "Unzipping $z"
+            unzip -o -q "$z" -d .
+          done
+          find . -maxdepth 4 -name settings.gradle
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+
+      - name: Build APK
+        run: |
+          SG=$(find . -maxdepth 4 -name settings.gradle | head -1)
+          if [ -z "$SG" ]; then echo "settings.gradle not found - upload DigitalTuner.zip"; exit 1; fi
+          cd "$(dirname "$SG")"
+          gradle assembleRelease --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DigitalTuner-APK
+          path: '**/app/build/outputs/apk/release/*.apk'
